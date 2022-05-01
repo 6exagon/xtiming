@@ -6,22 +6,24 @@
     .globl _run_timing
     .p2align 4, 0x90
 
-# Stack layout: counter (4), iterations (4), data (8), init (8), loop (8), old_time (8), n (4)
+# Stack layout:
+# counter (4), iterations (4), data (8), init (8), loop (8), destroy (8), old_time (8), n (4)
 
 _run_timing:
     pushq   %rbp                # Sets up stack frame
     movq    %rsp, %rbp
-    subq    $48, %rsp           # 4 bytes of padding for 16-byte boundary
+    subq    $64, %rsp           # 12 bytes of padding for 16-byte boundary
 
-    movl    %edx, 40(%rsp)      # "Push" all parameters to stack so they're not clobbered
+    movl    %edx, 48(%rsp)      # "Push" all parameters to stack so they're not clobbered
     movl    %esi, (%rsp)
     rdtsc                       # Interleave setting up initial time
     movl    %esi, 4(%rsp)
     movq    %rdi, 8(%rsp)
     movq    %rcx, 16(%rsp)
     movq    %r8, 24(%rsp)
-    movl    %eax, 32(%rsp)      # This can be done as two little-endian dwords
-    movl    %edx, 36(%rsp)      # This is why this section is not written as push instructions
+    movq    %r9, 32(%rsp)
+    movl    %eax, 40(%rsp)      # This can be done as two little-endian dwords
+    movl    %edx, 44(%rsp)      # This is why this section is not written as push instructions
 
 mainloop:
     callq   *16(%rsp)           # Call init function pointer on stack
@@ -31,19 +33,21 @@ iterationloop:
     decl    (%rsp)
     jne     iterationloop
 
+    callq   *32(%rsp)           # Call destroy function pointer on stack
+
     rdtsc                       # Gets current time
     movq    8(%rsp), %rcx       # Interleave adding entry to data
     shlq    $32, %rax
     addq    $8, 8(%rsp)         # Increase data pointer on stack ahead of time
     shrdq   $32, %rdx, %rax
-    movq    32(%rsp), %rsi
+    movq    40(%rsp), %rsi
     movl    4(%rsp), %edi       # Interleave resetting counter
-    movq    %rax, 32(%rsp)      # Save old time
+    movq    %rax, 40(%rsp)      # Save old time
     subq    %rsi, %rax
     movl    %edi, (%rsp)
     movq    %rax, (%rcx)
 
-    decl    40(%rsp)
+    decl    48(%rsp)
     jne     mainloop
 
     leave

@@ -65,6 +65,9 @@ uint64_t sum(uint64_t *data, uint32_t n) {
 
 //Calculates sample standard deviation of memory block given its mean
 long double stdev(uint64_t *data, uint32_t n, long double mean) {
+    if (n < 2) {
+        return NAN;
+    }
     long double ssquares = 0.0;
     for (uint32_t x = 0; x < n; x++)  {
         long double diff = data[x] - mean;

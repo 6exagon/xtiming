@@ -8,14 +8,20 @@
 #include <dlfcn.h>
 #include "xtimeutil.h"
 
+//This function implemented in assembly for rdtsc instruction and custom calling conventions
+extern void run_timing(
+    uint64_t *, uint32_t, uint32_t, void (*)(void), void (*)(void), void (*)(void));
+
 //No-operation func for when no init function is present, executing only a retq
 extern void null_func(void);
 
-//This function implemented in assembly for rdtsc instruction and custom calling conventions
-extern void run_timing(uint64_t *, uint32_t, uint32_t, void (*)(void), void (*)(void));
+//Returns no-operation function if function pointer is NULL
+static inline void (*isfunc(void (*func)(void)))(void) {
+    return (func) ? func : null_func;
+}
 
 //Prints statistics about timing data
-void print_statistics(uint64_t *data, uint32_t n) {
+static inline void print_statistics(uint64_t *data, uint32_t n) {
     qsort(data, n, sizeof(uint64_t), compare);
     printf("Minimum: %" PRIu64, *data);
     printf("\nQ1:      %" PRIu64, data[n >> 2]);
@@ -34,8 +40,6 @@ void print_statistics(uint64_t *data, uint32_t n) {
 int main(int argc, char *argv[]) {
     uint32_t iterations = UINT16_MAX;
     uint32_t sample_size = UINT16_MAX;
-    void (*init_func)(void);
-    void (*loop_func)(void);
     void *dylib;
     
     switch (argc) {
@@ -86,13 +90,15 @@ int main(int argc, char *argv[]) {
                 return 0;
             }
             free(command);
-            init_func = dlsym(dylib, "init");
-            loop_func = dlsym(dylib, "loop");
-            if (!loop_func) {
-                puts("Error finding loop function in .dylib");
-                dlclose(dylib);
-                return 0;
-            }
+    }
+    
+    void (*init_func)(void) = dlsym(dylib, "init");
+    void (*loop_func)(void) = dlsym(dylib, "loop");
+    void (*destroy_func)(void) = dlsym(dylib, "destroy");
+    if (!loop_func) {
+        puts("Error finding loop function in .dylib");
+        dlclose(dylib);
+        return 0;
     }
     
     uint64_t *data = malloc(sample_size * sizeof(uint64_t));
@@ -101,7 +107,7 @@ int main(int argc, char *argv[]) {
         dlclose(dylib);
         return 0;
     }
-    run_timing(data, iterations, sample_size, (init_func) ? init_func : null_func, loop_func);
+    run_timing(data, iterations, sample_size, isfunc(init_func), loop_func, isfunc(destroy_func));
     print_statistics(data, sample_size);
     free(data);
     dlclose(dylib);
