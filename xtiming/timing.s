@@ -7,12 +7,13 @@
     .p2align 4, 0x90
 
 # Stack layout:
-# counter (4), iterations (4), data (8), init (8), loop (8), destroy (8), old_time (8), n (4)
+# counter (4), iterations (4), data (8), init (8), loop (8), destroy (8), old_time (8), n (4),
+# padding (4), %r12 (8), %r13 (8), %r14 (8), %r15 (8), %rbx (8)
 
 _run_timing:
     pushq   %rbp                # Sets up stack frame
     movq    %rsp, %rbp
-    subq    $64, %rsp           # 12 bytes of padding for 16-byte boundary
+    subq    $96, %rsp           # Includes 4 bytes of padding for 16-byte boundary
 
     movl    %edx, 48(%rsp)      # "Push" all parameters to stack so they're not clobbered
     movl    %esi, (%rsp)
@@ -23,17 +24,22 @@ _run_timing:
     movq    %r8, 24(%rsp)
     movq    %r9, 32(%rsp)
     movl    %eax, 40(%rsp)      # This can be done as two little-endian dwords
-    movl    %edx, 44(%rsp)      # This is why this section is not written as push instructions
+    movl    %edx, 44(%rsp)      # This is why this section cannot be written as push instructions
+    movq    %r12, 56(%rsp)      # That would be slower anyway though, judging from other sources
+    movq    %r13, 64(%rsp)      # Operating system interrupt register push code often does this
+    movq    %r14, 72(%rsp)
+    movq    %r15, 80(%rsp)
+    movq    %rbx, 88(%rsp)
 
 mainloop:
-    callq   *16(%rsp)           # Call init function pointer on stack
+    callq   *-80(%rbp)          # Call init function pointer on stack
 
 iterationloop:
-    callq   *24(%rsp)           # Call loop function pointer on stack
-    decl    (%rsp)
+    callq   *-72(%rbp)          # Call loop function pointer on stack
+    decl    -96(%rbp)
     jne     iterationloop
 
-    callq   *32(%rsp)           # Call destroy function pointer on stack
+    callq   *-64(%rbp)          # Call destroy function pointer on stack
 
     rdtsc                       # Gets current time
     movq    8(%rsp), %rcx       # Interleave adding entry to data
@@ -49,6 +55,12 @@ iterationloop:
 
     decl    48(%rsp)
     jne     mainloop
+
+    movq    56(%rsp), %r12      # Restore callee-preserved registers
+    movq    64(%rsp), %r13
+    movq    72(%rsp), %r14
+    movq    80(%rsp), %r15
+    movq    88(%rsp), %rbx
 
     leave
     retq
