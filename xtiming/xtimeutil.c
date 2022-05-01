@@ -54,7 +54,9 @@ int compare(const void *ptr_a, const void *ptr_b) {
     return (a > b) - (a < b);
 }
 
-//Sums data block (may be rewritten in assembly in the future)
+//Sums data block
+//Due to compilation with -march=native, this can't be improved in assembly
+//There are small inefficiencies, but the use of native registers makes it worth it
 uint64_t sum(uint64_t *data, uint32_t n) {
     uint64_t s = 0;
     while (n--) {

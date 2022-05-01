@@ -1,5 +1,5 @@
 CC = clang
-CFLAGS = -O3
+CFLAGS = -O3 -march=native -fomit-frame-pointer
 ASSEMBLER = as
 LINKER = ld
 LFLAGS = -lc
