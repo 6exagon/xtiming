@@ -54,26 +54,26 @@ int compare(const void *ptr_a, const void *ptr_b) {
     return (a > b) - (a < b);
 }
 
-//Sums data block
+//Sums data block up to but not including the end pointer
 //Due to compilation with -march=native, this can't be improved in assembly
 //There are small inefficiencies, but the use of native registers makes it worth it
-uint64_t sum(uint64_t *data, uint32_t n) {
+uint64_t sum(uint64_t *data, uint64_t *end) {
     uint64_t s = 0;
-    while (n--) {
-        s += data[n];
+    while (data < end) {
+        s += *data++;
     }
     return s;
 }
 
 //Calculates sample standard deviation of memory block given its mean
-long double stdev(uint64_t *data, uint32_t n, long double mean) {
-    if (n < 2) {
+long double stdev(uint64_t *data, uint64_t *end, long double mean) {
+    if (end - data < 2) {
         return NAN;
     }
     long double ssquares = 0.0;
-    for (uint32_t x = 0; x < n; x++)  {
-        long double diff = data[x] - mean;
+    for (uint64_t *x = data; x < end; x++) {
+        register long double diff = *x - mean;
         ssquares += diff * diff;
     }
-    return sqrtl(ssquares / (n - 1));
+    return sqrtl(ssquares / (end - data - 1));
 }

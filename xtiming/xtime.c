@@ -20,20 +20,36 @@ static inline void (*isfunc(void (*func)(void)))(void) {
     return (func) ? func : null_func;
 }
 
-//Prints statistics about timing data
+//Prints statistics about timing data, including mean and stdev with and without outliers
 static inline void print_statistics(uint64_t *data, uint32_t n) {
     qsort(data, n, sizeof(uint64_t), compare);
-    printf("Minimum: %" PRIu64, *data);
-    printf("\nQ1:      %" PRIu64, data[n >> 2]);
-    printf("\nMedian:  %" PRIu64, data[n >> 1]);
-    printf("\nQ3:      %" PRIu64, data[n * 3 >> 2]);
-    printf("\nMaximum: %" PRIu64, data[n - 1]);
-    printf("\nIQR:     %" PRIu64, data[n * 3 >> 2] - data[n >> 2]);
-    uint64_t s = sum(data, n);
-    printf("\nSum:     %" PRIu64, s);
+    printf("\nMinimum:        %" PRIu64, *data);
+    register uint64_t q1 = data[n >> 2];
+    printf("\nQ1:             %" PRIu64, q1);
+    printf("\nMedian:         %" PRIu64, data[n >> 1]);
+    register uint64_t q3 = data[n * 3 >> 2];
+    printf("\nQ3:             %" PRIu64, q3);
+    printf("\nMaximum:        %" PRIu64, data[n - 1]);
+    uint64_t iqr = q3 - q1;
+    printf("\nIQR:            %" PRIu64, iqr);
+    
+    uint64_t *end = data + n;
+    uint64_t s = sum(data, end);
+    printf("\n\nSum:            %" PRIu64, s);
     long double mean = (long double) s / n;
-    printf("\nMean:    %LF", mean);
-    printf("\nSTDEV:   %LF\n", stdev(data, n, mean));
+    printf("\nMean:           %LF", mean);
+    printf("\nSTDEV:          %LF\n", stdev(data, end, mean));
+    
+    uint64_t outlier_amt = iqr * 3 / 2;
+    uint64_t min_orange = q1 - outlier_amt;
+    uint64_t max_orange = q3 + outlier_amt;
+    while (*data++ < min_orange);
+    while (*--end > max_orange);
+    s = sum(--data, end);
+    printf("\nAdjusted Sum:   %" PRIu64, s);
+    mean = (long double) s / (end - data);
+    printf("\nAdjusted Mean:  %LF", mean);
+    printf("\nAdjusted STDEV: %LF\n\n", stdev(data, end, mean));
 }
 
 //Parses command-line flags, prepares and loads .dylib, runs tests, outputs results to stdout
