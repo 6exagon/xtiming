@@ -22,6 +22,8 @@ XTiming is designed to make sense and be easy to use. It simply loads a dynamic 
 
 Examples can be found in the `examples` directory, and with XTiming they demonstrate that (on certain machines at least) though the initial overhead of loading a large constant into `%xmm0` is great, it stops outweighing the tiny penalty of two `mov`'s per loop as the number of loops increases past a certain threshold.
 
+Sadly, there's not really a way to integrate C and XTiming. Circumventing calling conventions and adding global labels within functions seems to be something compilers aren't able to handle. Compiling to assembly and tweaking the output code to taste (or copy-pasting code segments and ideas into a file prepared for XTiming) is always an option, though.
+
 #### Basic Usage
 
 Run the program from the command line:
